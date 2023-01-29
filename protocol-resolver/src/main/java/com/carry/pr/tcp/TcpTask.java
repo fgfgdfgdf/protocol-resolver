@@ -1,11 +1,17 @@
 package com.carry.pr.tcp;
 
 import com.carry.pr.base.Task;
-import com.carry.pr.base.Worker;
+
+import java.nio.ByteBuffer;
+
 
 public class TcpTask implements Task {
 
-    Worker worker;
+    ByteBuffer data;
+
+    public TcpTask(ByteBuffer data) {
+        this.data = data;
+    }
 
     @Override
     public Task next() {
@@ -13,12 +19,14 @@ public class TcpTask implements Task {
     }
 
     @Override
-    public void bindWorker(Worker worker) {
-        this.worker = worker;
+    public Task exception() {
+        return null;
     }
 
     @Override
     public void run() {
-
+        while (data.hasRemaining()){
+            System.out.print((char)data.get());
+        }
     }
 }

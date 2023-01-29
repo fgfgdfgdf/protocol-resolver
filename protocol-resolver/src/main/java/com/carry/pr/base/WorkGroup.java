@@ -1,7 +1,5 @@
 package com.carry.pr.base;
 
-import com.carry.pr.base.impl.ResolverThreadFactory;
-
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadFactory;
 
@@ -12,19 +10,42 @@ public class WorkGroup implements Executor {
     private Worker[] workers;
     ThreadFactory threadFactory;
 
-    public WorkGroup(int threads) {
-        this.threadFactory = ResolverThreadFactory.threadFactory;
-        workers = new Worker[threads];
+    public WorkGroup(Class<? extends Worker> clazz) {
+        this(Runtime.getRuntime().availableProcessors() * 2, clazz);
     }
 
-    public void init(Class<? extends Worker> clazz) throws Exception {
-        for (int i = 0; i < workers.length; i++) {
-            workers[i] = clazz.newInstance();
-            workers[i].setBelong(this);
-            workers[i].init();
+    public WorkGroup(int threads, Class<? extends Worker> clazz) {
+        this.threadFactory = ResolverThreadFactory.threadFactory;
+        workers = new Worker[threads];
+        initWorker(clazz);
+    }
+
+    public WorkGroup(Worker[] worker) {
+        this.threadFactory = ResolverThreadFactory.threadFactory;
+        workers = worker;
+    }
+
+    private void initWorker(Class<? extends Worker> clazz) {
+        try {
+            for (int i = 0; i < workers.length; i++) {
+                workers[i] = clazz.newInstance();
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
     }
 
+    public void start() {
+        try {
+            for (int i = 0; i < workers.length; i++) {
+                workers[i].setBelong(this);
+                workers[i].start();
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+
+    }
 
     public ThreadFactory getThreadFactory() {
         return threadFactory;

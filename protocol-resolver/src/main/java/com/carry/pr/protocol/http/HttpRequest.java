@@ -1,13 +1,11 @@
 package com.carry.pr.protocol.http;
 
-import com.carry.pr.base.Request;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HttpRequest extends Request {
+public class HttpRequest  {
     // 回车
     public static final byte CR = 13;
     // 换行

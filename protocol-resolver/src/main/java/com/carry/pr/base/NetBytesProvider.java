@@ -1,4 +1,4 @@
-package com.carry.pr.base.impl;
+package com.carry.pr.base;
 
 import com.carry.pr.base.BytesProvider;
 

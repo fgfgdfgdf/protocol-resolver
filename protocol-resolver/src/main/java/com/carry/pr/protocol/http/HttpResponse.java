@@ -1,13 +1,11 @@
 package com.carry.pr.protocol.http;
 
-import com.carry.pr.base.Response;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HttpResponse extends Response {
+public class HttpResponse {
 
     // head
     protected String httpVersion;
@@ -23,9 +21,7 @@ public class HttpResponse extends Response {
     public HttpResponse() {
     }
 
-    @Override
     public void write(int b) throws IOException {
-        super.write(b);
     }
 
     public byte[] getBytes() {
