@@ -1,8 +1,9 @@
-package com.carry.pr.tcp;
+package com.carry.pr.base.tcp;
 
 
-import com.carry.pr.base.Task;
-import com.carry.pr.base.Worker;
+import com.carry.pr.base.executor.Task;
+import com.carry.pr.base.executor.WorkGroup;
+import com.carry.pr.base.executor.Worker;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,36 +21,39 @@ public class TcpWorker extends Worker {
     private AtomicBoolean ioBlock;
     Selector selector;
 
-    public TcpWorker() {
+    public TcpWorker(WorkGroup workGroup) {
+        super(workGroup);
+        ioBlock = new AtomicBoolean();
         try {
             this.selector = Selector.open();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        ioBlock = new AtomicBoolean();
     }
 
     @Override
-    protected void start() throws Exception {
+    public void start() throws Exception {
         super.start();
     }
 
     @Override
     public void work() {
-        try {
-            int select = 0;
-            if (!hasTask()) {
-                ioBlock.compareAndSet(false, true);
-                select = selector.select();
-            } else {
-                select = selector.selectNow();
+        while (true) {
+            try {
+                int select = 0;
+                if (!hasTask()) {
+                    ioBlock.compareAndSet(false, true);
+                    select = selector.select();
+                } else {
+                    select = selector.selectNow();
+                }
+                if (select > 0) {
+                    doIoTask();
+                }
+                doQueueTask(false);
+            } catch (Throwable t) {
+                t.printStackTrace();
             }
-            if (select > 0) {
-                doIoTask();
-            }
-            doQueueTask();
-        } catch (Throwable t) {
-            t.printStackTrace();
         }
     }
 
@@ -74,7 +78,7 @@ public class TcpWorker extends Worker {
     }
 
     @Override
-    protected boolean addTask(Task task) {
+    public boolean addTask(Task task) {
         boolean b = super.addTask(task);
         if (ioBlock.get()) {
             ioBlock.compareAndSet(true, false);
@@ -107,12 +111,12 @@ public class TcpWorker extends Worker {
                 if (data == null) {
                     byte[] bytes = new byte[cacheBuf.position()];
                     System.arraycopy(cacheBuf.array(), 0, bytes, 0, cacheBuf.position());
-                    data=ByteBuffer.wrap(bytes, 0, bytes.length);
+                    data = ByteBuffer.wrap(bytes, 0, bytes.length);
                 } else {
                     byte[] bytes = new byte[data.limit() + cacheBuf.position()];
                     System.arraycopy(data, 0, bytes, 0, data.position());
                     System.arraycopy(cacheBuf.array(), 0, bytes, data.position(), cacheBuf.position());
-                    data=ByteBuffer.wrap(bytes, 0, bytes.length);
+                    data = ByteBuffer.wrap(bytes, 0, bytes.length);
                 }
             }
             //

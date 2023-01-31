@@ -1,6 +1,6 @@
-package com.carry.pr.base;
+package com.carry.pr.base.bytes;
 
-import com.carry.pr.base.BytesProvider;
+import com.carry.pr.base.bytes.BytesProvider;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;

@@ -1,7 +1,7 @@
 package com.carry.pr.protocol.http;
 
 import com.carry.pr.base.Server;
-import com.carry.pr.base.WorkGroup;
+import com.carry.pr.base.executor.WorkGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

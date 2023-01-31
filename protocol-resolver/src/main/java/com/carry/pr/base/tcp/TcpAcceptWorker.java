@@ -1,7 +1,8 @@
-package com.carry.pr.tcp;
+package com.carry.pr.base.tcp;
 
-import com.carry.pr.base.Task;
-import com.carry.pr.base.WorkGroup;
+import com.carry.pr.base.executor.DefaultTask;
+import com.carry.pr.base.executor.Task;
+import com.carry.pr.base.executor.WorkGroup;
 
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
@@ -15,13 +16,14 @@ public class TcpAcceptWorker extends TcpWorker {
     ServerSocketChannel serverSocketChannel;
     WorkGroup childGroup;
 
-    public TcpAcceptWorker(int port, WorkGroup childGroup) {
+    public TcpAcceptWorker(int port, WorkGroup workGroup, WorkGroup childGroup) {
+        super(workGroup);
         this.port = port;
         this.childGroup = childGroup;
     }
 
     @Override
-    protected void start() throws Exception {
+    public void start() throws Exception {
         serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.bind(new InetSocketAddress(port));
         serverSocketChannel.configureBlocking(false);
@@ -35,28 +37,14 @@ public class TcpAcceptWorker extends TcpWorker {
             ServerSocketChannel serverchannel = (ServerSocketChannel) selectionKey.channel();
             SocketChannel channel = serverchannel.accept();
             channel.configureBlocking(false);
-            TcpWorker worker =(TcpWorker) childGroup.nextWorker();
-            worker.execute(new Task() {
-                @Override
-                public Task next() {
-                    return null;
+            TcpWorker worker = (TcpWorker) childGroup.nextWorker();
+            worker.execute(new DefaultTask(() -> {
+                try {
+                    channel.register(worker.selector, SelectionKey.OP_READ);
+                } catch (ClosedChannelException e) {
+                    throw new RuntimeException(e);
                 }
-
-                @Override
-                public Task exception() {
-                    return null;
-                }
-
-                @Override
-                public void run() {
-                    try {
-                        channel.register(worker.selector,SelectionKey.OP_READ);
-                    } catch (ClosedChannelException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            });
-
+            }));
         } catch (Throwable t) {
             t.printStackTrace();
         }
