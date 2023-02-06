@@ -5,7 +5,6 @@ import com.carry.pr.base.executor.Task;
 import com.carry.pr.base.executor.WorkGroup;
 import com.carry.pr.base.executor.Worker;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -25,8 +24,8 @@ public class TcpWorker extends Worker {
         super(workGroup);
         ioBlock = new AtomicBoolean();
         try {
-            this.selector = Selector.open();
-        } catch (IOException e) {
+            this.selector = SelectorProvider.open();
+        } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }
@@ -121,7 +120,7 @@ public class TcpWorker extends Worker {
             }
             //
             if (data != null) {
-                execute(new TcpTask(data));
+                execute(new TcpReadTask(data, socketChannel));
             }
         } catch (Throwable t) {
             t.printStackTrace();
@@ -131,6 +130,17 @@ public class TcpWorker extends Worker {
     public void write(SelectionKey selectionKey) {
         try {
             SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
+            TaskContent taskContent = (TaskContent) selectionKey.attachment();
+            if (taskContent != null) {
+                int remaining = taskContent.data.remaining();
+                int write = socketChannel.write(taskContent.data);
+                if (remaining < write) {
+                    socketChannel.register(selector, SelectionKey.OP_WRITE);
+                    selector.wakeup();
+                    return;
+                }
+            }
+            socketChannel.register(selector, SelectionKey.OP_READ);
         } catch (Throwable t) {
             t.printStackTrace();
         }

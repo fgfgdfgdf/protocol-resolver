@@ -1,6 +1,7 @@
 package com.carry.pr.base.executor;
 
 
+
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -53,7 +54,7 @@ public class Worker implements Executor, Runnable {
                 }
             }
             assert task != null;
-            if ((task = task.next()) != null) {
+            if ((task = task.next(this)) != null) {
                 execute(task);
             }
             ++workCount;

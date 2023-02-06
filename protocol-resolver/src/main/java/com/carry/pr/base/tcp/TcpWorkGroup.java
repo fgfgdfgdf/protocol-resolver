@@ -11,6 +11,7 @@ public class TcpWorkGroup extends WorkGroup {
     private AtomicInteger incr;
     private Worker accecpter;
     private Worker[] workers;
+    private int port;
 
     public TcpWorkGroup(int port) {
         this(port, Runtime.getRuntime().availableProcessors(), WorkerFactory.defaultFactory);
@@ -18,6 +19,7 @@ public class TcpWorkGroup extends WorkGroup {
 
     public TcpWorkGroup(int port, int workerNum, WorkerFactory workerFactory) {
         super(workerFactory);
+        this.port = port;
         incr = new AtomicInteger();
         workers = new Worker[workerNum];
         for (int i = 0; i < workerNum; i++) {

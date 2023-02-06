@@ -9,7 +9,7 @@ public class DefaultTask implements Task {
     }
 
     @Override
-    public Task next() {
+    public Task next(Worker worker) {
         return null;
     }
 
