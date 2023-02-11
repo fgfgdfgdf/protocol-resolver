@@ -1,4 +1,6 @@
-package com.carry.pr.base.executor;
+package com.carry.pr.base.task;
+
+import com.carry.pr.base.executor.Worker;
 
 public class DefaultTask implements Task {
 

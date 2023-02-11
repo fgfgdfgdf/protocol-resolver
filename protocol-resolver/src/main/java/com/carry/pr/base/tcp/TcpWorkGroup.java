@@ -7,11 +7,10 @@ import com.carry.pr.base.executor.WorkerFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TcpWorkGroup extends WorkGroup {
+    private final AtomicInteger incr;
 
-    private AtomicInteger incr;
-    private Worker accecpter;
-    private Worker[] workers;
-    private int port;
+    private final Worker accecpter;
+    private final Worker[] workers;
 
     public TcpWorkGroup(int port) {
         this(port, Runtime.getRuntime().availableProcessors(), WorkerFactory.defaultFactory);
@@ -19,7 +18,6 @@ public class TcpWorkGroup extends WorkGroup {
 
     public TcpWorkGroup(int port, int workerNum, WorkerFactory workerFactory) {
         super(workerFactory);
-        this.port = port;
         incr = new AtomicInteger();
         workers = new Worker[workerNum];
         for (int i = 0; i < workerNum; i++) {

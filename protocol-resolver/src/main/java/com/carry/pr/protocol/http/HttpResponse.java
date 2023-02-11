@@ -2,6 +2,7 @@ package com.carry.pr.protocol.http;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -13,7 +14,7 @@ public class HttpResponse {
     protected String desc;
 
     // heads
-    protected Map<String, String> head=new HashMap<>();
+    protected Map<String, String> head = new HashMap<>();
 
     // body
     byte[] body;
@@ -34,17 +35,35 @@ public class HttpResponse {
         sb.append("\r\n");
         head.forEach((k, v) -> {
             sb.append(k);
-            sb.append(": ");
+            sb.append(":");
             sb.append(v);
             sb.append("\r\n");
         });
         sb.append("\r\n");
-
-        for (byte b : body) {
-            sb.append(b);
+        byte[] bytes = sb.toString().getBytes(StandardCharsets.UTF_8);
+        if (body != null) {
+            byte[] newBytes = new byte[bytes.length + bytes.length];
+            System.arraycopy(bytes, 0, newBytes, 0, bytes.length);
+            System.arraycopy(body, 0, newBytes, bytes.length, body.length);
+            return newBytes;
         }
-        return sb.toString().getBytes(StandardCharsets.UTF_8);
+        return bytes;
     }
 
+
+    public static HttpResponse defaultResp(HttpRequest httpRequest) {
+        HttpResponse httpResponse = new HttpResponse();
+        httpResponse.httpVersion = httpRequest.httpVersion;
+        httpResponse.code = 200;
+        httpResponse.desc = "OK";
+        Map<String, String> heads = httpResponse.head;
+
+//        heads.put("Server", "protocol-resolver");
+
+        httpResponse.body = ("hello,date:" + new Date() + ",from protocol-resolver").getBytes(StandardCharsets.UTF_8);
+        heads.put("content-type", "text/plain");
+        heads.put("content-length", String.valueOf(httpResponse.body.length));
+        return httpResponse;
+    }
 
 }

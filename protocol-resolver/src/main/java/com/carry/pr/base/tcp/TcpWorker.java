@@ -1,11 +1,13 @@
 package com.carry.pr.base.tcp;
 
 
-import com.carry.pr.base.executor.Task;
+import com.carry.pr.base.common.SelectorProvider;
 import com.carry.pr.base.executor.WorkGroup;
 import com.carry.pr.base.executor.Worker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
+import java.io.IOException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
@@ -15,61 +17,74 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TcpWorker extends Worker {
 
-    private static ByteBuffer cacheBuf = ByteBuffer.allocate(512);
+    private static final Logger log = LoggerFactory.getLogger(TcpWorker.class);
 
-    private AtomicBoolean ioBlock;
-    Selector selector;
+    private final AtomicBoolean ioBlock;
+    protected Selector selector;
 
     public TcpWorker(WorkGroup workGroup) {
         super(workGroup);
         ioBlock = new AtomicBoolean();
-        try {
-            this.selector = SelectorProvider.open();
-        } catch (Throwable e) {
-            throw new RuntimeException(e);
-        }
+        this.selector = SelectorProvider.open();
     }
 
     @Override
-    public void start() throws Exception {
+    public void start() throws IOException {
         super.start();
     }
 
+    @SuppressWarnings("InfiniteLoopStatement")
     @Override
-    public void work() {
+    public void run() {
         while (true) {
-            try {
-                int select = 0;
-                if (!hasTask()) {
-                    ioBlock.compareAndSet(false, true);
-                    select = selector.select();
-                } else {
-                    select = selector.selectNow();
-                }
-                if (select > 0) {
-                    doIoTask();
-                }
-                doQueueTask(false);
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
+            int select = select();
+
+            doIoTask(select);
+
+            doQuqueTask();
         }
     }
 
-    private void doIoTask() {
+    private int select() {
+        int select = 0;
+        try {
+            if (!hasTask()) {
+                ioBlock.compareAndSet(false, true);
+                select = selector.select();
+            } else {
+                select = selector.selectNow();
+            }
+        } catch (IOException t) {
+            t.printStackTrace();
+        }
+        return select;
+    }
+
+
+    private void doIoTask(int select) {
+        if (select <= 0) return;
         Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
         while (iterator.hasNext()) {
             SelectionKey selectionKey = iterator.next();
             iterator.remove();
-            if (selectionKey.isAcceptable()) {
+            if (selectionKey.isValid() && selectionKey.isAcceptable()) {
                 accept(selectionKey);
-            } else if (selectionKey.isReadable()) {
+            } else if (selectionKey.isValid() && selectionKey.isReadable()) {
                 read(selectionKey);
-            } else if (selectionKey.isWritable()) {
+            } else if (selectionKey.isValid() && selectionKey.isWritable()) {
                 write(selectionKey);
-            } else if (selectionKey.isConnectable()) {
+            } else if (selectionKey.isValid() && selectionKey.isConnectable()) {
                 connect(selectionKey);
             }
+        }
+    }
+
+    protected void doQuqueTask() {
+        // queueTask
+        try {
+            doQueueTask(false);
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
     }
 
@@ -77,16 +92,21 @@ public class TcpWorker extends Worker {
     }
 
     @Override
-    public boolean addTask(Task task) {
-        boolean b = super.addTask(task);
+    public void execute(Runnable command) {
+        super.execute(command);
+    }
+
+    @Override
+    public boolean addTask(Runnable task) {
+        boolean added = super.addTask(task);
         if (ioBlock.get()) {
             ioBlock.compareAndSet(true, false);
             selector.wakeup();
         }
-        return b;
+        return added;
     }
 
-    public void accept(SelectionKey selectionKey) {
+    protected void accept(SelectionKey selectionKey) {
         try {
             ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
             SocketChannel accept = serverSocketChannel.accept();
@@ -97,43 +117,26 @@ public class TcpWorker extends Worker {
         }
     }
 
-    public void read(SelectionKey selectionKey) {
+    protected void read(SelectionKey selectionKey) {
         try {
             SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
-            // cacheBuf
-            cacheBuf.clear();
-            int read = 0;
-            ByteBuffer data = null;
-            while (true) {
-                read = socketChannel.read(cacheBuf);
-                if (read <= 0) break;
-                if (data == null) {
-                    byte[] bytes = new byte[cacheBuf.position()];
-                    System.arraycopy(cacheBuf.array(), 0, bytes, 0, cacheBuf.position());
-                    data = ByteBuffer.wrap(bytes, 0, bytes.length);
-                } else {
-                    byte[] bytes = new byte[data.limit() + cacheBuf.position()];
-                    System.arraycopy(data, 0, bytes, 0, data.position());
-                    System.arraycopy(cacheBuf.array(), 0, bytes, data.position(), cacheBuf.position());
-                    data = ByteBuffer.wrap(bytes, 0, bytes.length);
-                }
-            }
-            //
-            if (data != null) {
-                execute(new TcpReadTask(data, socketChannel));
-            }
+            TcpChannel tcpChannel = (TcpChannel) selectionKey.attachment();
+            execute(new TcpReadTask(tcpChannel, selectionKey));
         } catch (Throwable t) {
+            log.error("read error");
             t.printStackTrace();
         }
     }
 
-    public void write(SelectionKey selectionKey) {
+
+    protected void write(SelectionKey selectionKey) {
         try {
             SocketChannel socketChannel = (SocketChannel) selectionKey.channel();
-            TaskContent taskContent = (TaskContent) selectionKey.attachment();
+            TcpChannel tcpChannel = (TcpChannel) selectionKey.attachment();
+            TaskContent taskContent = tcpChannel.getContent();
             if (taskContent != null) {
-                int remaining = taskContent.data.remaining();
-                int write = socketChannel.write(taskContent.data);
+                int remaining = taskContent.out.getByteBuffer().remaining();
+                int write = socketChannel.write(taskContent.out.getByteBuffer());
                 if (remaining < write) {
                     socketChannel.register(selector, SelectionKey.OP_WRITE);
                     selector.wakeup();
@@ -146,7 +149,7 @@ public class TcpWorker extends Worker {
         }
     }
 
-    public void connect(SelectionKey selectionKey) {
+    protected void connect(SelectionKey selectionKey) {
         try {
             ServerSocketChannel serverSocketChannel = (ServerSocketChannel) selectionKey.channel();
             SocketChannel accept = serverSocketChannel.accept();
@@ -154,6 +157,5 @@ public class TcpWorker extends Worker {
             t.printStackTrace();
         }
     }
-
 
 }

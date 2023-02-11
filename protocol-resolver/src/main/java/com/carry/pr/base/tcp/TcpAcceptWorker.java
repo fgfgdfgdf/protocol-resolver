@@ -1,9 +1,11 @@
 package com.carry.pr.base.tcp;
 
-import com.carry.pr.base.executor.DefaultTask;
-import com.carry.pr.base.executor.Task;
+import com.carry.pr.base.task.DefaultTask;
 import com.carry.pr.base.executor.WorkGroup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.SelectionKey;
@@ -12,6 +14,7 @@ import java.nio.channels.SocketChannel;
 
 public class TcpAcceptWorker extends TcpWorker {
 
+    private static final Logger log = LoggerFactory.getLogger(TcpWorker.class);
     int port;
     ServerSocketChannel serverSocketChannel;
     WorkGroup childGroup;
@@ -23,7 +26,7 @@ public class TcpAcceptWorker extends TcpWorker {
     }
 
     @Override
-    public void start() throws Exception {
+    public void start() throws IOException {
         serverSocketChannel = ServerSocketChannel.open();
         serverSocketChannel.bind(new InetSocketAddress(port));
         serverSocketChannel.configureBlocking(false);
@@ -40,7 +43,7 @@ public class TcpAcceptWorker extends TcpWorker {
             TcpWorker worker = (TcpWorker) childGroup.nextWorker();
             worker.execute(new DefaultTask(() -> {
                 try {
-                    channel.register(worker.selector, SelectionKey.OP_READ);
+                    channel.register(worker.selector, SelectionKey.OP_READ, new TcpChannel(worker, channel));
                 } catch (ClosedChannelException e) {
                     throw new RuntimeException(e);
                 }

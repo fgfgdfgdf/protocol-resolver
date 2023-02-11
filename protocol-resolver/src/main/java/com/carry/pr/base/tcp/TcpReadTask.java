@@ -1,37 +1,146 @@
 package com.carry.pr.base.tcp;
 
-import com.carry.pr.base.executor.Task;
+import com.carry.pr.base.bytes.ByteBufferPool;
+import com.carry.pr.base.task.DefaultTask;
+import com.carry.pr.base.task.Task;
 import com.carry.pr.base.executor.Worker;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
 
-public class TcpReadTask implements Task {
+public final class TcpReadTask implements Task {
 
-    TaskContent content;
+    private static final Logger log = LoggerFactory.getLogger(TcpReadTask.class);
 
-    public TcpReadTask(ByteBuffer data, SocketChannel socketChannel) {
-        this.content = new TaskContent(socketChannel, data);
+    private final TaskContent content;
+    private boolean readOver;
+
+    private ReadHandle handle;
+    private final SelectionKey selectionKey;
+
+    public TcpReadTask(TcpChannel tcpChannel, SelectionKey selectionKey) {
+        TaskContent taskContent = tcpChannel.getContent();
+        if (taskContent == null) {
+            taskContent = new TaskContent(tcpChannel, tcpChannel.getWorker());
+            tcpChannel.setContent(taskContent);
+            taskContent.protocol = tcpChannel.getProtocol();
+            taskContent.tcpChannel = tcpChannel;
+        }
+        this.content = taskContent;
+        this.selectionKey = selectionKey;
     }
 
     @Override
     public Task next(Worker worker) {
-        return new TcpWriteTask(content);
-    }
-
-    @Override
-    public Task exception() {
+        if (readOver) {
+            ensureCacheRecycle();
+            return new TcpWriteTask(content);
+        }
         return null;
     }
 
     @Override
+    public Task exception() {
+        return new DefaultTask(this::ensureCacheRecycle);
+    }
+
+    @Override
     public void run() {
-        ByteBuffer data = content.data;
-        while (data.hasRemaining()) {
-            System.out.print((char) data.get());
+        SocketChannel socketChannel = content.tcpChannel.getJavaChannel();
+        boolean close = false;
+        int totalRead = 0, capacity, read;
+        try {
+            do {
+                ensureCacheUse();
+                capacity = content.in.getByteBuffer().remaining();
+                read = socketChannel.read(content.in.getByteBuffer());
+                if (read < 0) {
+                    close = true;
+                    break;
+                }
+                totalRead += read;
+            } while (read != 0 && read == capacity);
+
+            if (totalRead != 0) {
+                ReadHandle readHandle = content.protocol.getReadHandle();
+                if (readHandle != null && readHandle.rhandle(content)) {
+                    content.in.recycle();
+                    content.in = null;
+                    readOver();
+                }
+            }
+            if (close) {
+                ensureCacheRecycle();
+                content.tcpChannel.close();
+            }
+        } catch (IOException e) {
+            try {
+                ensureCacheRecycle();
+                e.printStackTrace();
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
         }
-        System.out.println();
+    }
+
+    public void readOver() {
+        readOver = true;
+    }
+
+    public void ensureCacheUse() {
+        if (content.in == null) {
+            content.in = ByteBufferPool.smallest(content);
+        } else if (!content.in.getByteBuffer().hasRemaining()) {
+            content.in = ByteBufferPool.grew(content, content.in);
+        }
+    }
+
+    public void ensureCacheRecycle() {
+        if (content.in != null) {
+            content.in.recycle();
+            content.in = null;
+        }
+    }
+
+    public void printIn(ByteBuffer in) {
+        if (in == null) return;
+        int position = in.position();
+        for (int i = 0; i < position; i++) {
+            System.out.print(((char) in.get(i)));
+        }
+    }
+
+    public interface ReadHandle {
+        /**
+         * @return readOver
+         */
+        boolean rhandle(TaskContent content);
+    }
+
+    public static class TcpDefaultReadHandle implements ReadHandle {
+
+        public static TcpDefaultReadHandle instance = new TcpDefaultReadHandle();
+
+        @Override
+        public boolean rhandle(TaskContent content) {
+            ByteBufferPool.ByteBufferCache in = content.in;
+            StringBuilder sb = new StringBuilder();
+            if (in != null) {
+                ByteBuffer duplicate = in.getByteBuffer().duplicate();
+                duplicate.flip();
+                while (duplicate.hasRemaining()) {
+                    sb.append((char) duplicate.get());
+                }
+            }
+            System.out.print(sb);
+            content.getObjList().add(sb);
+            return true;
+        }
     }
 
 }

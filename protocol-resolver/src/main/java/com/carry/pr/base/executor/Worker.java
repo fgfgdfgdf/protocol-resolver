@@ -1,84 +1,88 @@
 package com.carry.pr.base.executor;
 
 
+import com.carry.pr.base.task.Task;
 
+import java.io.IOException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * 默认阻塞执行
+ */
 public class Worker implements Executor, Runnable {
 
     private long workCount;
     private final WorkGroup belong;
-    private final BlockingQueue<Task> queue;
-    private Thread thread;
+    private final BlockingQueue<Runnable> queue;
 
-    private AtomicBoolean working;
+    private Thread thread;
 
     public Worker(WorkGroup workGroup) {
         belong = workGroup;
         queue = new LinkedBlockingQueue<>();
-        working = new AtomicBoolean();
     }
 
-    public void start() throws Exception {
-        if (working.get()) return;
+    public void start() throws IOException {
         thread = belong.workerFactory.newThread(this);
         thread.start();
-        working.compareAndSet(false, true);
-    }
-
-    @SuppressWarnings("InfiniteLoopStatement")
-    public void work() {
-        while (true) {
-            try {
-                doQueueTask(true);
-            } catch (Throwable t) {
-                t.printStackTrace();
-            }
-        }
     }
 
     public void doQueueTask(boolean blockWait) throws InterruptedException {
-        Task task;
-        if ((task = (blockWait ? queue.take() : queue.peek())) != null) {
-            if (!blockWait)
-                queue.poll();
-            try {
-                task.run();
-            } catch (Throwable t) {
-                t.printStackTrace();
-                if ((task = task.exception()) != null) {
-                    execute(task);
-                }
-            }
-            assert task != null;
-            if ((task = task.next(this)) != null) {
-                execute(task);
-            }
+        Runnable task;
+        if ((task = (blockWait ? queue.take() : queue.poll())) != null) {
+            taskRun(task);
             ++workCount;
         }
     }
 
-    @Override
-    public final void run() {
-        work();
-    }
-
-    @Override
-    public void execute(Runnable command) {
-        if (command == null) return;
-        Task t;
-        if (command instanceof Task) {
-            t = (Task) command;
-        } else {
-            t = new DefaultTask(command);
+    public void taskRun(Runnable task) {
+        Task next;
+        try {
+            task.run();
+        } catch (Throwable t) {
+            t.printStackTrace();
+            if ((task instanceof Task) && (next = ((Task) task).exception()) != null) {
+                execute(next);
+            }
         }
-        addTask(t);
+        if ((task instanceof Task) && (next = ((Task) task).next(this)) != null) {
+            execute(next);
+        }
     }
 
-    public boolean addTask(Task task) {
+    @SuppressWarnings("InfiniteLoopStatement")
+    @Override
+    public void run() {
+        while (true) {
+            try {
+                doQueueTask(true);
+            } catch (InterruptedException t) {
+                t.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    public void execute(Runnable runnable) {
+        if (runnable == null) return;
+        if (inWorkThread()) {
+            taskRun(runnable);
+        } else {
+            addTask(runnable);
+        }
+    }
+
+    protected boolean inWorkThread() {
+        return thread == Thread.currentThread();
+    }
+
+    public WorkGroup getBelong() {
+        return belong;
+    }
+
+    public boolean addTask(Runnable task) {
         return queue.offer(task);
     }
 
