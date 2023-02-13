@@ -19,11 +19,7 @@ public class HttpHandle implements TcpReadTask.ReadHandle, TcpWriteTask.WriteHan
     @Override
     public boolean rhandle(TaskContent content) {
         ByteBufferPool.ByteBufferCache in = content.getIn();
-        HttpRequest httpRequest = content.getObj(HttpRequest.class);
-        if (httpRequest == null) {
-            httpRequest = new HttpRequest();
-            content.putObj(httpRequest);
-        }
+        HttpRequest httpRequest = getOrCreate(content);
         return httpRequest.init(in);
     }
 
@@ -39,5 +35,14 @@ public class HttpHandle implements TcpReadTask.ReadHandle, TcpWriteTask.WriteHan
         cache.getByteBuffer().put(bytes);
         content.setOut(cache);
         return true;
+    }
+
+    public HttpRequest getOrCreate(TaskContent content) {
+        HttpRequest httpRequest = content.getObj(HttpRequest.class);
+        if (httpRequest == null) {
+            httpRequest = new HttpRequest();
+            content.putObj(httpRequest);
+        }
+        return httpRequest;
     }
 }

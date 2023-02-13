@@ -8,7 +8,7 @@ import java.util.Scanner;
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        WorkGroup workGroup = Protocol.HTTP.createServer(8009);
+        WorkGroup workGroup = Protocol.TCP.createServer(8009);
         workGroup.start();
         Scanner scanner = new Scanner(System.in);
         while (true) {

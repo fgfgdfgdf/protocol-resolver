@@ -14,7 +14,7 @@ public class ByteBufferPool {
 
     private static final Logger log = LoggerFactory.getLogger(ByteBufferPool.class);
 
-    public static final int INIT_SCALE = 1024;
+    public static final int INIT_SCALE = 16;
     public static final int INIT_SIZE = Runtime.getRuntime().availableProcessors();
 
     private static final AtomicInteger incrId = new AtomicInteger();
@@ -42,7 +42,6 @@ public class ByteBufferPool {
                 cache = next.get();
             }
             useMap.put(cache.id, content.getId());
-            print();
         } catch (Throwable t) {
             t.printStackTrace();
         }
@@ -51,22 +50,15 @@ public class ByteBufferPool {
 
     public static ByteBufferCache grew(TaskContent content, ByteBufferCache cache) {
         try {
-            LvCachePool next = getNext(cache.pool.scale);
-            ByteBufferCache nextCache;
-            if (next == null) {
-                int scale = cache.byteBuffer.capacity();
-                // 直接使用堆内bytebuffer
-                nextCache = new ByteBufferCache(scale << 1);
-            } else {
-                nextCache = next.get();
-                useMap.put(nextCache.id, content.getId());
-            }
+            ByteBufferCache nextCache = optimalSize(content, cache.byteBuffer.capacity()<<1);
             // copy
             ByteBuffer byteBuffer = cache.byteBuffer;
             byteBuffer.flip();
             ByteBuffer newByteBuffer = nextCache.byteBuffer;
             newByteBuffer.put(byteBuffer);
             newByteBuffer.position(byteBuffer.position());
+            nextCache.rIndex = cache.rIndex;
+            nextCache.wIndex = cache.wIndex;
             cache.recycle();
             return nextCache;
         } catch (Throwable t) {
@@ -127,11 +119,19 @@ public class ByteBufferPool {
         }
     }
 
+    /**
+     * 不要直接使用ByteBuffer的读写
+     * 用本类(ByteBufferCache)提供的读写
+     * 此类非线程安全
+     */
     public static class ByteBufferCache implements BytesRW {
         int id;
         int useId;
         ByteBuffer byteBuffer;
         LvCachePool pool;
+
+        int rIndex;
+        int wIndex;
 
         @Override
         public boolean isBigEndian() {
@@ -140,18 +140,31 @@ public class ByteBufferPool {
 
         @Override
         public byte readByte() {
-            return byteBuffer.get();
+            byte b = byteBuffer.get(rIndex);
+            rIndex++;
+            return b;
         }
 
         @Override
         public void writeByte(byte b) {
-            byteBuffer.put(b);
+            byteBuffer.put(wIndex, b);
+            wIndex++;
         }
 
-        public boolean ensureRW(int byteSize) {
-            int position = byteBuffer.position();
-            int limit = byteBuffer.limit();
-            return position + byteSize <= limit;
+        /**
+         * @return 能否读出足够长度
+         */
+        public boolean ensureRead(int byteSize) {
+            int readLimit = byteBuffer.position();
+            return rIndex + byteSize > readLimit;
+        }
+
+        /**
+         * @return 能否写足够长度
+         */
+        public boolean ensureWrite(int byteSize) {
+            int writeLimit = byteBuffer.capacity();
+            return wIndex + byteSize > writeLimit;
         }
 
         private ByteBufferCache(int id, LvCachePool pool) {
@@ -185,12 +198,32 @@ public class ByteBufferPool {
         public ByteBuffer getByteBuffer() {
             return byteBuffer;
         }
+
+        public int getrIndex() {
+            return rIndex;
+        }
+
+        public void setrIndex(int rIndex) {
+            this.rIndex = rIndex;
+        }
+
+        public int getwIndex() {
+            return wIndex;
+        }
+
+        public void setwIndex(int wIndex) {
+            this.wIndex = wIndex;
+        }
     }
+
 
     public static void print() {
         for (LvCachePool item : LvCachePool.values()) {
-//            log.info("LvCachePool {},thread {},size:{},free:{}", item.name(), Thread.currentThread().getName(), INIT_SIZE, item.freeQueue.size());
+            log.info("LvCachePool {},size:{},free:{}", item.name(), INIT_SIZE, item.freeQueue.size());
         }
+        useMap.forEach((k, v) -> {
+            log.info("use: cacheId,{},contentId:{}", k, v);
+        });
     }
 
 }

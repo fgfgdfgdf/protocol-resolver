@@ -63,6 +63,12 @@ public final class TcpReadTask implements Task {
                     close = true;
                     break;
                 }
+                System.out.print(" rindex:" + content.in.getrIndex());
+                System.out.print(" windex:" + content.in.getwIndex());
+                System.out.print(" postion:" + content.in.getByteBuffer().position());
+                System.out.print(" limit:" + content.in.getByteBuffer().limit());
+                System.out.print(" cap:" + content.in.getByteBuffer().capacity());
+                System.out.println();
                 totalRead += read;
             } while (read != 0 && read == capacity);
 
@@ -129,17 +135,14 @@ public final class TcpReadTask implements Task {
         @Override
         public boolean rhandle(TaskContent content) {
             ByteBufferPool.ByteBufferCache in = content.in;
-            StringBuilder sb = new StringBuilder();
             if (in != null) {
-                ByteBuffer duplicate = in.getByteBuffer().duplicate();
-                duplicate.flip();
-                while (duplicate.hasRemaining()) {
-                    sb.append((char) duplicate.get());
+                StringBuilder sb = new StringBuilder();
+                while (in.ensureRead(1)) {
+                    sb.append((char) in.readByte());
                 }
+                content.getObjList().add(sb);
             }
-            System.out.print(sb);
-            content.getObjList().add(sb);
-            return true;
+            return false;
         }
     }
 

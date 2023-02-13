@@ -6,6 +6,7 @@ import com.carry.pr.base.executor.Worker;
 import com.carry.pr.protocol.Protocol;
 
 import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 
@@ -42,6 +43,7 @@ public class TcpWriteTask implements Task {
 
 
     public void tryWrite(Worker worker) {
+        boolean writeOver = true;
         try {
             if (content.out == null) return;
             ByteBuffer bytes = content.out.getByteBuffer();
@@ -54,16 +56,15 @@ public class TcpWriteTask implements Task {
                 remaining -= write;
                 tryCount--;
             } while (remaining > 0 && tryCount > 0);
-//            if (remaining > 0 && worker instanceof TcpWorker) {
-//                TcpWorker tcpWorker = (TcpWorker) worker;
-//                try {
-//                    socketChannel.register(tcpWorker.selector, SelectionKey.OP_WRITE, content.tcpChannel);
-//                } catch (Throwable t) {
-//                    t.printStackTrace();
-//                }
-//            } else {
-//                socketChannel.register(((TcpWorker) worker).selector, SelectionKey.OP_READ, content.tcpChannel);
-//            }
+
+            if (remaining > 0) {
+                try {
+                    writeOver = false;
+                    socketChannel.register(((TcpWorker) worker).selector, SelectionKey.OP_WRITE, content.tcpChannel);
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                }
+            }
         } catch (Throwable t) {
             t.printStackTrace();
         } finally {
@@ -71,7 +72,7 @@ public class TcpWriteTask implements Task {
                 content.in.recycle();
                 content.in = null;
             }
-            if (content.out != null) {
+            if (content.out != null && writeOver) {
                 content.out.recycle();
                 content.out = null;
             }
@@ -97,6 +98,7 @@ public class TcpWriteTask implements Task {
                 byte[] bytes = obj.toString().getBytes(StandardCharsets.UTF_8);
                 content.out = ByteBufferPool.optimalSize(content, bytes.length);
                 content.out.getByteBuffer().put(bytes);
+                content.getObjList().remove(obj);
             }
             return true;
         }

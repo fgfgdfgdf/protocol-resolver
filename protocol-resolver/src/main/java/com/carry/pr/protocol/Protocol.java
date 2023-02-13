@@ -5,12 +5,15 @@ import com.carry.pr.base.tcp.TcpReadTask;
 import com.carry.pr.base.tcp.TcpWorkGroup;
 import com.carry.pr.base.tcp.TcpWriteTask;
 import com.carry.pr.protocol.http.HttpHandle;
+import com.carry.pr.protocol.ssl.SSLHandle;
 
 public enum Protocol {
 
     TCP(TcpReadTask.TcpDefaultReadHandle.instance, TcpWriteTask.TcpDefaultWriteHandle.instance),
 
     HTTP(HttpHandle.instance, HttpHandle.instance),
+
+    SSL(SSLHandle.instance, SSLHandle.instance),
     ;
     public final TcpReadTask.ReadHandle readHandle;
     public final TcpWriteTask.WriteHandle writeHandle;
