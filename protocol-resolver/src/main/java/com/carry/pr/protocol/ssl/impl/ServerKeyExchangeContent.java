@@ -27,6 +27,8 @@ import com.carry.pr.protocol.ssl.HandShakeContent;
  */
 public class ServerKeyExchangeContent extends HandShakeContent {
 
+    byte[] algorithmParam;
+
     public ServerKeyExchangeContent() {
     }
 

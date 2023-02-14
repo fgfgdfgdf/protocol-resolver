@@ -17,11 +17,11 @@ public class SSLHandShake {
         SERVER_HELLO(0x02, ServerHelloContent.class),// 2
         CERTIFICATE(0x0b, CertificateContent.class),// 11
         SERVER_KEY_EXCHANGE(0x0c, ServerKeyExchangeContent.class),// 12
-//        CERTIFICATE_REQUEST(0x0d),// 13
-//        SERVER_HELLO_DONE(0x0e),// 14
-//        CERTIFICATE_VERIFY(0x0f),// 15
-//        CLIENT_KEY_EXCHANGE(0x10),// 16
-//        FINISHED(0x14),// 20
+        CERTIFICATE_REQUEST(0x0d, CertificateRequestContent.class),// 13
+        SERVER_HELLO_DONE(0x0e, ServerHelloDoneContent.class),// 14
+        CERTIFICATE_VERIFY(0x0f, ClientKeyExchangeContent.class),// 15
+        CLIENT_KEY_EXCHANGE(0x10, ClientKeyExchangeContent.class),// 16
+        FINISHED(0x14, FinishedContent.class),// 20
         ;
         final int value;
 
@@ -30,6 +30,16 @@ public class SSLHandShake {
         HandShakeType(int value, Class<? extends HandShakeContent> contentClass) {
             this.value = value;
             this.contentClass = contentClass;
+        }
+
+        HandShakeContent createContent() {
+            HandShakeContent handShakeContent = null;
+            try {
+                handShakeContent = contentClass.newInstance();
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+            return handShakeContent;
         }
 
         static SSLHandShake.HandShakeType valueOf(byte value) {

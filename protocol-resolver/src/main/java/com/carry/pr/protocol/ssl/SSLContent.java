@@ -17,7 +17,7 @@ public class SSLContent {
         boolean over;
         do {
             over = sslResolve.resolverFunc.apply(this, in);
-        } while (over);
+        } while (over && (sslResolve = sslResolve.next()) != null);
         return over;
     }
 
@@ -45,7 +45,7 @@ public class SSLContent {
         VERSION((content, in) -> {
             if (!in.ensureRead(2)) return false;
             SSLRecord sslRecord = content.getRecord();
-            sslRecord.version = SSLRecord.Version.valueOf(in.readShort());
+            sslRecord.version = SSLRecord.Version.valueOf(in.readByte(), in.readByte());
             return true;
         }),
         LENGTH((content, in) -> {
@@ -64,13 +64,15 @@ public class SSLContent {
         HANDSHAKE_LENGTH((content, in) -> {
             if (!in.ensureRead(3)) return false;
             SSLHandShake handShake = content.getHandShake();
-            handShake.length = in.readByte() + in.readByte() << 8 + in.readByte() << 16;
+            handShake.length =  (in.readByte() << 16 & 0xffffff) | (in.readByte() << 8 & 0xffff) | (in.readByte()& 0xff);
             return true;
         }),
         HANDSHAKE_CONTENT((content, in) -> {
-            if (!in.ensureRead(content.getHandShake().length)) return false;
             SSLHandShake handShake = content.getHandShake();
-            handShake.length = in.readByte() + in.readByte() << 8 + in.readByte() << 16;
+            if (!in.ensureRead(handShake.length)) return false;
+            handShake.content = handShake.handShakeType.createContent();
+            handShake.content.setTotalLength(handShake.length);
+            handShake.content.decode(in);
             return true;
         }),
 

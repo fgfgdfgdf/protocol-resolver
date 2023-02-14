@@ -32,19 +32,21 @@ public class SSLRecord {
     }
 
     public enum Version {
-        SSL_3_0(0x0300),// 3,0
-        TLS_1_0(0x0301),// 3,1
-        TLS_1_1(0x0302),// 3,2
-        TLS_1_2(0x0303);// 3,3
-        public final int value;
+        SSL_3_0(0x03,0x00),// 3,0
+        TLS_1_0(0x03,0x01),// 3,1
+        TLS_1_1(0x03,0x02),// 3,2
+        TLS_1_2(0x03,0x03);// 3,3
+        public final int big;
+        public final int small;
 
-        Version(int value) {
-            this.value = value;
+        Version(int big,int small) {
+            this.big=big;
+            this.small=small;
         }
 
-        static Version valueOf(short value) {
+        public static Version valueOf(int big,int small) {
             for (Version v : values()) {
-                if (v.value == value) {
+                if (v.big == big && v.small==small) {
                     return v;
                 }
             }

@@ -4,6 +4,8 @@ import com.carry.pr.base.tcp.TaskContent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
@@ -14,7 +16,7 @@ public class ByteBufferPool {
 
     private static final Logger log = LoggerFactory.getLogger(ByteBufferPool.class);
 
-    public static final int INIT_SCALE = 16;
+    public static final int INIT_SCALE = 1024;
     public static final int INIT_SIZE = Runtime.getRuntime().availableProcessors();
 
     private static final AtomicInteger incrId = new AtomicInteger();
@@ -50,7 +52,7 @@ public class ByteBufferPool {
 
     public static ByteBufferCache grew(TaskContent content, ByteBufferCache cache) {
         try {
-            ByteBufferCache nextCache = optimalSize(content, cache.byteBuffer.capacity()<<1);
+            ByteBufferCache nextCache = optimalSize(content, cache.byteBuffer.capacity() << 1);
             // copy
             ByteBuffer byteBuffer = cache.byteBuffer;
             byteBuffer.flip();
@@ -124,7 +126,7 @@ public class ByteBufferPool {
      * 用本类(ByteBufferCache)提供的读写
      * 此类非线程安全
      */
-    public static class ByteBufferCache implements BytesRW {
+    public static class ByteBufferCache extends InputStream implements BytesRW {
         int id;
         int useId;
         ByteBuffer byteBuffer;
@@ -133,9 +135,22 @@ public class ByteBufferPool {
         int rIndex;
         int wIndex;
 
+        boolean isBigEndian=false;
+        @Override
+        public int read() throws IOException {
+            if (ensureRead(1)) return -1;
+            byte b = byteBuffer.get(rIndex);
+            rIndex++;
+            return b;
+        }
+
         @Override
         public boolean isBigEndian() {
-            return true;
+            return isBigEndian;
+        }
+
+        public void useBigEndian(){
+            isBigEndian=true;
         }
 
         @Override
@@ -156,7 +171,7 @@ public class ByteBufferPool {
          */
         public boolean ensureRead(int byteSize) {
             int readLimit = byteBuffer.position();
-            return rIndex + byteSize > readLimit;
+            return rIndex + byteSize <= readLimit;
         }
 
         /**
