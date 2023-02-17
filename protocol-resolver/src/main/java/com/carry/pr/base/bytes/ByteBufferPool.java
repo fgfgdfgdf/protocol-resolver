@@ -30,7 +30,6 @@ public class ByteBufferPool {
         } catch (Throwable t) {
             t.printStackTrace();
         }
-        print();
         return cache;
     }
 
@@ -48,6 +47,12 @@ public class ByteBufferPool {
             t.printStackTrace();
         }
         return cache;
+    }
+
+    public static ByteBufferCache optimalBytes(TaskContent content, byte[] bytes) {
+        ByteBufferCache byteBufferCache = optimalSize(content, bytes.length);
+        byteBufferCache.byteBuffer.put(bytes);
+        return byteBufferCache;
     }
 
     public static ByteBufferCache grew(TaskContent content, ByteBufferCache cache) {
@@ -135,13 +140,12 @@ public class ByteBufferPool {
         int rIndex;
         int wIndex;
 
-        boolean isBigEndian=false;
+        boolean isBigEndian = false;
+
         @Override
         public int read() throws IOException {
             if (ensureRead(1)) return -1;
-            byte b = byteBuffer.get(rIndex);
-            rIndex++;
-            return b;
+            return readByte();
         }
 
         @Override
@@ -149,8 +153,8 @@ public class ByteBufferPool {
             return isBigEndian;
         }
 
-        public void useBigEndian(){
-            isBigEndian=true;
+        public void useBigEndian() {
+            isBigEndian = true;
         }
 
         @Override

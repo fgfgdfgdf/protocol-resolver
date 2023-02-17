@@ -1,10 +1,14 @@
 package com.carry.pr.protocol.ssl;
 
 import com.carry.pr.base.bytes.ByteBufferPool;
+import com.carry.pr.base.bytes.OriginalData;
+import com.carry.pr.base.resolve.MsgReqObj;
+import com.carry.pr.base.resolve.MsgRespObj;
+import com.carry.pr.base.resolve.ResolveChain;
 
 import java.util.function.BiFunction;
 
-public class SSLContent {
+public class SSLContent implements MsgReqObj, MsgRespObj, OriginalData {
 
     SSLRecord record;
 
@@ -21,6 +25,15 @@ public class SSLContent {
         return over;
     }
 
+    @Override
+    public byte[] original() {
+        return new byte[0];
+    }
+
+    @Override
+    public boolean decode(ByteBufferPool.ByteBufferCache in) {
+        return false;
+    }
 
     public SSLRecord getRecord() {
         if (record == null)
@@ -34,7 +47,7 @@ public class SSLContent {
         return handShake;
     }
 
-    enum SSLResolver {
+    enum SSLResolver implements ResolveChain<SSLContent> {
         // -------------------------record-------------------
         RECORE_TYPE((content, in) -> {
             if (!in.ensureRead(1)) return false;
@@ -64,7 +77,7 @@ public class SSLContent {
         HANDSHAKE_LENGTH((content, in) -> {
             if (!in.ensureRead(3)) return false;
             SSLHandShake handShake = content.getHandShake();
-            handShake.length =  (in.readByte() << 16 & 0xffffff) | (in.readByte() << 8 & 0xffff) | (in.readByte()& 0xff);
+            handShake.length = (in.readByte() << 16 & 0xffffff) | (in.readByte() << 8 & 0xffff) | (in.readByte() & 0xff);
             return true;
         }),
         HANDSHAKE_CONTENT((content, in) -> {
@@ -83,6 +96,11 @@ public class SSLContent {
             this.resolverFunc = resolverFunc;
         }
 
+        @Override
+        public boolean resolve(SSLContent msgInObj, ByteBufferPool.ByteBufferCache in) {
+            return resolverFunc.apply(msgInObj,in);
+        }
+
         public SSLResolver next() {
             SSLResolver[] values = SSLResolver.values();
             for (int i = 0; i < values.length; i++) {
@@ -92,8 +110,10 @@ public class SSLContent {
             }
             return null;
         }
-
     }
 
+    @Override
+    public void log() {
 
+    }
 }

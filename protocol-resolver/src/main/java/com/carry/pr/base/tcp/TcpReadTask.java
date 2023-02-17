@@ -4,11 +4,11 @@ import com.carry.pr.base.bytes.ByteBufferPool;
 import com.carry.pr.base.task.DefaultTask;
 import com.carry.pr.base.task.Task;
 import com.carry.pr.base.executor.Worker;
+import com.carry.pr.protocol.Protocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 
@@ -52,8 +52,10 @@ public final class TcpReadTask implements Task {
     @Override
     public void run() {
         SocketChannel socketChannel = content.tcpChannel.getJavaChannel();
+        Protocol protocol = content.protocol;
+        ReadHandle readHandle = protocol.readHandle;
         boolean close = false;
-        int totalRead = 0, capacity, read;
+        int capacity, read;
         try {
             do {
                 ensureCacheUse();
@@ -63,29 +65,23 @@ public final class TcpReadTask implements Task {
                     close = true;
                     break;
                 }
-                System.out.print(" rindex:" + content.in.getrIndex());
-                System.out.print(" windex:" + content.in.getwIndex());
-                System.out.print(" postion:" + content.in.getByteBuffer().position());
-                System.out.print(" limit:" + content.in.getByteBuffer().limit());
-                System.out.print(" cap:" + content.in.getByteBuffer().capacity());
-                System.out.println();
-                totalRead += read;
-            } while (read != 0 && read == capacity);
-
-            if (totalRead != 0) {
-                ReadHandle readHandle = content.protocol.getReadHandle();
+                // read Handle
                 if (readHandle != null && readHandle.rhandle(content)) {
                     content.in.recycle();
                     content.in = null;
                     readOver();
+                    break;
                 }
-            }
+            } while (read != 0 && read == capacity);
+
             if (close) {
+                System.out.println(Thread.currentThread().getName() + " close channel:" + socketChannel);
                 ensureCacheRecycle();
                 content.tcpChannel.close();
             }
         } catch (IOException e) {
             try {
+                socketChannel.close();
                 ensureCacheRecycle();
                 e.printStackTrace();
             } catch (Throwable t) {
@@ -113,14 +109,6 @@ public final class TcpReadTask implements Task {
         }
     }
 
-    public void printIn(ByteBuffer in) {
-        if (in == null) return;
-        int position = in.position();
-        for (int i = 0; i < position; i++) {
-            System.out.print(((char) in.get(i)));
-        }
-    }
-
     public interface ReadHandle {
         /**
          * @return readOver
@@ -130,7 +118,7 @@ public final class TcpReadTask implements Task {
 
     public static class TcpDefaultReadHandle implements ReadHandle {
 
-        public static TcpDefaultReadHandle instance = new TcpDefaultReadHandle();
+        public final static TcpDefaultReadHandle instance = new TcpDefaultReadHandle();
 
         @Override
         public boolean rhandle(TaskContent content) {

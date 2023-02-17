@@ -1,13 +1,13 @@
 package com.carry.pr.base.tcp;
 
 
+import com.carry.pr.base.resolve.ResolverChannel;
 import com.carry.pr.protocol.Protocol;
 
 import java.io.IOException;
-import java.nio.channels.Channel;
 import java.nio.channels.SocketChannel;
 
-public class TcpChannel implements Channel {
+public class TcpChannel implements ResolverChannel {
 
     private SocketChannel javaChannel;
     private TaskContent content;

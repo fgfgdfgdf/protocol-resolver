@@ -8,9 +8,10 @@ import java.util.Scanner;
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        WorkGroup workGroup = Protocol.SSL.createServer(8009);
+        WorkGroup workGroup = Protocol.HTTP.createServer();
         workGroup.start();
         Scanner scanner = new Scanner(System.in);
+
         while (true) {
             if (scanner.hasNext()) {
                 String next = scanner.next();

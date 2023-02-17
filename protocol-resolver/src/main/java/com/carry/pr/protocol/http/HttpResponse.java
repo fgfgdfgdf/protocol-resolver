@@ -1,22 +1,19 @@
 package com.carry.pr.protocol.http;
 
+import com.carry.pr.base.resolve.MsgRespObj;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
-public class HttpResponse {
+public class HttpResponse implements MsgRespObj {
 
-    // head
     protected String httpVersion;
     protected int code;
     protected String desc;
-
-    // heads
     protected Map<String, String> head = new HashMap<>();
-
-    // body
     byte[] body;
 
     public HttpResponse() {
@@ -24,6 +21,7 @@ public class HttpResponse {
 
     public void write(int b) throws IOException {
     }
+
 
     public byte[] getBytes() {
         StringBuilder sb = new StringBuilder();

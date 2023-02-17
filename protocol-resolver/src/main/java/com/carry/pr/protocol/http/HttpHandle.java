@@ -1,48 +1,59 @@
 package com.carry.pr.protocol.http;
 
 import com.carry.pr.base.bytes.ByteBufferPool;
+import com.carry.pr.base.resolve.AbstractProtocolHandle;
+import com.carry.pr.base.resolve.MsgResolver;
 import com.carry.pr.base.tcp.TaskContent;
-import com.carry.pr.base.tcp.TcpReadTask;
-import com.carry.pr.base.tcp.TcpWriteTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.charset.StandardCharsets;
 
+public class HttpHandle extends AbstractProtocolHandle<HttpRequest, HttpResponse> {
 
-public class HttpHandle implements TcpReadTask.ReadHandle, TcpWriteTask.WriteHandle {
     private static final Logger log = LoggerFactory.getLogger(HttpHandle.class);
-
     public static final HttpHandle instance = new HttpHandle();
-
 
     @Override
     public boolean rhandle(TaskContent content) {
-        ByteBufferPool.ByteBufferCache in = content.getIn();
-        HttpRequest httpRequest = getOrCreate(content);
-        return httpRequest.init(in);
+        return false;
     }
 
     @Override
     public boolean whandle(TaskContent content) {
-        ByteBufferPool.ByteBufferCache in = content.getOut();
-        HttpRequest httpRequest = content.getObj(HttpRequest.class);
-        HttpResponse httpResponse = HttpResponse.defaultResp(httpRequest);
-        byte[] bytes = httpResponse.getBytes();
-        System.out.println(new String(bytes, StandardCharsets.UTF_8));
-        System.out.println();
-        ByteBufferPool.ByteBufferCache cache = ByteBufferPool.optimalSize(content, bytes.length);
-        cache.getByteBuffer().put(bytes);
-        content.setOut(cache);
+        HttpRequest requset = getInObj(content);
+        requset.log();
+        byte[] bytes = HttpResponse.defaultResp(requset).getBytes();
+        content.setOut(ByteBufferPool.optimalBytes(content, bytes));
         return true;
     }
 
-    public HttpRequest getOrCreate(TaskContent content) {
-        HttpRequest httpRequest = content.getObj(HttpRequest.class);
-        if (httpRequest == null) {
-            httpRequest = new HttpRequest();
-            content.putObj(httpRequest);
-        }
-        return httpRequest;
+    @Override
+    public MsgResolver<HttpRequest, HttpResponse> createResolver(TaskContent content) {
+        return new HttpResolver();
+    }
+
+    @Override
+    public MsgResolver<HttpRequest, HttpResponse> getResolver(TaskContent content) {
+        return content.getObj(HttpResolver.class);
+    }
+
+    @Override
+    public HttpRequest createInObj() {
+        return new HttpRequest();
+    }
+
+    @Override
+    public HttpResponse createOutObj() {
+        return new HttpResponse();
+    }
+
+    @Override
+    public HttpRequest getInObj(TaskContent content) {
+        return content.getObj(HttpRequest.class);
+    }
+
+    @Override
+    public HttpResponse getOutObj(TaskContent content) {
+        return content.getObj(HttpResponse.class);
     }
 }
