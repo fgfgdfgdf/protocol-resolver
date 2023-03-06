@@ -171,8 +171,4 @@ public class DnsMessage implements MsgReqObj, MsgRespObj {
 
     }
 
-    @Override
-    public void log() {
-
-    }
 }

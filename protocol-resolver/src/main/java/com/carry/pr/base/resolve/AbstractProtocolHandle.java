@@ -13,7 +13,7 @@ public abstract class AbstractProtocolHandle<in extends MsgReqObj, out extends M
         return inObj;
     }
 
-    public MsgResolver<in, out> getOrResolver(TaskContent content) {
+    public MsgResolver<in, out> getOrCreateResolver(TaskContent content) {
         MsgResolver<in, out> resolver = getResolver(content);
         if (resolver == null) {
             resolver = createResolver(content);

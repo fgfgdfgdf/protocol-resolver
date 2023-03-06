@@ -1,6 +1,7 @@
 package com.carry.pr.protocol.ssl;
 
 import com.carry.pr.base.resolve.AbstractProtocolHandle;
+import com.carry.pr.base.resolve.MsgResolver;
 import com.carry.pr.base.tcp.TaskContent;
 import com.carry.pr.protocol.http.HttpHandle;
 import org.slf4j.Logger;
@@ -19,6 +20,16 @@ public class SSLHandle extends AbstractProtocolHandle<SSLContent, SSLContent> {
     @Override
     public boolean whandle(TaskContent content) {
         return false;
+    }
+
+    @Override
+    public MsgResolver<SSLContent, SSLContent> getResolver(TaskContent content) {
+        return null;
+    }
+
+    @Override
+    public MsgResolver<SSLContent, SSLContent> createResolver(TaskContent content) {
+        return null;
     }
 
     @Override

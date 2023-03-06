@@ -1,6 +1,7 @@
 package com.carry.pr.protocol.dns;
 
 import com.carry.pr.base.resolve.AbstractProtocolHandle;
+import com.carry.pr.base.resolve.MsgResolver;
 import com.carry.pr.base.tcp.TaskContent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,16 @@ public class DnsHandle extends AbstractProtocolHandle<DnsMessage, DnsMessage> {
         return false;
     }
 
+
+    @Override
+    public MsgResolver<DnsMessage, DnsMessage> getResolver(TaskContent content) {
+        return null;
+    }
+
+    @Override
+    public MsgResolver<DnsMessage, DnsMessage> createResolver(TaskContent content) {
+        return null;
+    }
 
     @Override
     public DnsMessage createInObj() {

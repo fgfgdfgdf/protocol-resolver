@@ -30,7 +30,6 @@ public class SSLContent implements MsgReqObj, MsgRespObj, OriginalData {
         return new byte[0];
     }
 
-    @Override
     public boolean decode(ByteBufferPool.ByteBufferCache in) {
         return false;
     }
@@ -112,7 +111,6 @@ public class SSLContent implements MsgReqObj, MsgRespObj, OriginalData {
         }
     }
 
-    @Override
     public void log() {
 
     }

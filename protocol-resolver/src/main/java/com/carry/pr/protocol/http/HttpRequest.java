@@ -21,11 +21,11 @@ public class HttpRequest implements MsgReqObj, OriginalData {
     }
 
     public boolean decode(ByteBufferPool.ByteBufferCache in) {
-        return new HttpResolver().resolve(this, in);
+//        return new HttpResolver().resolve(this, in);
+        return false;
     }
 
 
-    @Override
     public void log() {
         StringBuilder sb = new StringBuilder();
         sb.append(method);

@@ -15,7 +15,9 @@ public class HttpHandle extends AbstractProtocolHandle<HttpRequest, HttpResponse
 
     @Override
     public boolean rhandle(TaskContent content) {
-        return false;
+        MsgResolver<HttpRequest, HttpResponse> resolver = getOrCreateResolver(content);
+        HttpRequest request = getOrCreateInObj(content);
+        return resolver.resolveReq(request, content.getIn());
     }
 
     @Override
